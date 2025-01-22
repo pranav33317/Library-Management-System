@@ -1,0 +1,301 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <ctime>
+
+using namespace std;
+
+class Book {
+private:
+    int bookID;
+    string title;
+    string author;
+    int totalCopies;
+    int issuedCopies;
+
+public:
+    Book(int id, string t, string a, int copies)
+        : bookID(id), title(t), author(a), totalCopies(copies), issuedCopies(0) {}
+
+    int getBookID() const { return bookID; }
+    string getTitle() const { return title; }
+    string getAuthor() const { return author; }
+    int getTotalCopies() const { return totalCopies; }
+    int getIssuedCopies() const { return issuedCopies; }
+
+    bool issueBook() {
+        if (issuedCopies < totalCopies) {
+            issuedCopies++;
+            return true;
+        }
+        return false;
+    }
+
+    bool returnBook() {
+        if (issuedCopies > 0) {
+            issuedCopies--;
+            return true;
+        }
+        return false;
+    }
+
+    void displayBook() const {
+        cout << "Book ID: " << bookID << "\nTitle: " << title << "\nAuthor: " << author 
+             << "\nAvailable Copies: " << (totalCopies - issuedCopies) << "\n";
+    }
+};
+
+class Member {
+private:
+    int memberID;
+    string name;
+    string phoneNumber;
+    vector<Book*> borrowedBooks;
+    int fineAmount;
+
+public:
+    Member(int id, string n, string phone)
+        : memberID(id), name(n), phoneNumber(phone), fineAmount(0) {}
+
+    int getMemberID() const { return memberID; }
+    string getName() const { return name; }
+    string getPhoneNumber() const { return phoneNumber; }
+    int getFineAmount() const { return fineAmount; }
+    void addFine(int fine) { fineAmount += fine; }
+    bool borrowBook(Book* book) {
+        if (borrowedBooks.size() < 2 && book->issueBook()) {
+            borrowedBooks.push_back(book);
+            return true;
+        }
+        return false;
+    }
+
+    bool returnBook(int bookID) {
+        for (auto it = borrowedBooks.begin(); it != borrowedBooks.end(); ++it) {
+            if ((*it)->getBookID() == bookID) {
+                if ((*it)->returnBook()) {
+                    borrowedBooks.erase(it);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    void payFine(int amount) {
+        fineAmount -= amount;
+        if (fineAmount < 0) fineAmount = 0;
+    }
+
+    void displayMemberBooks() const {
+        if (borrowedBooks.empty()) {
+            cout << "No borrowed books.\n";
+        } else {
+            cout << "Borrowed Books:\n";
+            for (const auto& book : borrowedBooks) {
+                cout << "Book ID: " << book->getBookID() << ", Title: " << book->getTitle() << "\n";
+            }
+        }
+    }
+};
+
+class Library {
+private:
+    vector<Book> books;
+    vector<Member> members;
+    int bookIDCounter;
+    int memberIDCounter;
+
+public:
+    Library() : bookIDCounter(1), memberIDCounter(1) {}
+
+    void addBook(const string& title, const string& author, int copies) {
+        books.push_back(Book(bookIDCounter++, title, author, copies));
+    }
+
+    void removeBook(int bookID) {
+        auto it = remove_if(books.begin(), books.end(), [bookID](const Book& b) {
+            return b.getBookID() == bookID;
+        });
+        books.erase(it, books.end());
+    }
+
+    void registerMember(const string& name, const string& phone) {
+        members.push_back(Member(memberIDCounter++, name, phone));
+    }
+
+    void removeMember(int memberID) {
+        auto it = remove_if(members.begin(), members.end(), [memberID](const Member& m) {
+            return m.getMemberID() == memberID;
+        });
+        members.erase(it, members.end());
+    }
+
+    Member* loginMember(const string& name, const string& phone) {
+        for (auto& member : members) {
+            if (member.getName() == name && member.getPhoneNumber() == phone) {
+                return &member;
+            }
+        }
+        return nullptr;
+    }
+
+    Book* findBookByID(int bookID) {
+        for (auto& book : books) {
+            if (book.getBookID() == bookID) {
+                return &book;
+            }
+        }
+        return nullptr;
+    }
+
+    void displayAllBooks() const {
+        for (const auto& book : books) {
+            book.displayBook();
+        }
+    }
+
+    void displayAllMembers() const {
+        for (const auto& member : members) {
+            cout << "Member ID: " << member.getMemberID() << ", Name: " << member.getName() 
+                 << ", Phone: " << member.getPhoneNumber() << "\n";
+        }
+    }
+
+    void issueBook(Member* member, int bookID) {
+        Book* book = findBookByID(bookID);
+        if (book && member->borrowBook(book)) {
+            cout << "Book issued successfully!\n";
+        } else {
+            cout << "Failed to issue book.\n";
+        }
+    }
+
+    void returnBook(Member* member, int bookID, int daysDelayed) {
+        Book* book = findBookByID(bookID);
+        if (book && member->returnBook(bookID)) {
+            int fine = 3 * daysDelayed;  // Fine calculation: 3 rupees per day
+            member->addFine(fine);
+            cout << "Book returned successfully! Fine: " << fine << " rupees\n";
+        } else {
+            cout << "Failed to return book.\n";
+        }
+    }
+
+    void payFine(Member* member, int amount) {
+        member->payFine(amount);
+        cout << "Fine paid successfully!\n";
+    }
+
+    void listMemberBooks(Member* member) const {
+        member->displayMemberBooks();
+    }
+};
+
+// Function to calculate fines based on the delayed return
+int calculateFine(int daysDelayed) {
+    return 3 * daysDelayed; // Fine = 3 rupees per day
+}
+
+int main() {
+    Library library;
+    int choice;
+
+    while (true) {
+        cout << "Library Portal Initialized….\n";
+        cout << "1. Enter as a librarian\n2. Enter as a member\n3. Exit\n";
+        cin >> choice;
+
+        if (choice == 3) {
+            break;
+        }
+
+        if (choice == 1) {
+            int librarianChoice;
+            cout << "1. Register a member\n2. Remove a member\n3. Add a book\n4. Remove a book\n5. View all members\n6. View all books\n";
+            cin >> librarianChoice;
+
+            if (librarianChoice == 1) {
+                string name, phone;
+                cout << "Enter name: ";
+                cin >> name;
+                cout << "Enter phone number: ";
+                cin >> phone;
+                library.registerMember(name, phone);
+                cout << "Member registered successfully.\n";
+            } else if (librarianChoice == 2) {
+                int memberID;
+                cout << "Enter member ID to remove: ";
+                cin >> memberID;
+                library.removeMember(memberID);
+                cout << "Member removed successfully.\n";
+            } else if (librarianChoice == 3) {
+                string title, author;
+                int copies;
+                cout << "Enter book title: ";
+                cin >> title;
+                cout << "Enter book author: ";
+                cin >> author;
+                cout << "Enter number of copies: ";
+                cin >> copies;
+                library.addBook(title, author, copies);
+                cout << "Book added successfully.\n";
+            } else if (librarianChoice == 4) {
+                int bookID;
+                cout << "Enter book ID to remove: ";
+                cin >> bookID;
+                library.removeBook(bookID);
+                cout << "Book removed successfully.\n";
+            } else if (librarianChoice == 5) {
+                library.displayAllMembers();
+            } else if (librarianChoice == 6) {
+                library.displayAllBooks();
+            }
+        } else if (choice == 2) {
+            string name, phone;
+            cout << "Enter name: ";
+            cin >> name;
+            cout << "Enter phone number: ";
+            cin >> phone;
+            Member* member = library.loginMember(name, phone);
+            if (!member) {
+                cout << "Member not found.\n";
+            } else {
+                int memberChoice;
+                while (true) {
+                    cout << "1. List available books\n2. List my borrowed books\n3. Borrow a book\n4. Return a book\n5. Pay fine\n6. Logout\n";
+                    cin >> memberChoice;
+
+                    if (memberChoice == 6) {
+                        break;
+                    } else if (memberChoice == 1) {
+                        library.displayAllBooks();
+                    } else if (memberChoice == 2) {
+                        library.listMemberBooks(member);
+                    } else if (memberChoice == 3) {
+                        int bookID;
+                        cout << "Enter book ID to borrow: ";
+                        cin >> bookID;
+                        library.issueBook(member, bookID);
+                    } else if (memberChoice == 4) {
+                        int bookID, daysDelayed;
+                        cout << "Enter book ID to return: ";
+                        cin >> bookID;
+                        cout << "Enter days delayed: ";
+                        cin >> daysDelayed;
+                        library.returnBook(member, bookID, daysDelayed);
+                    } else if (memberChoice == 5) {
+                        int fineAmount;
+                        cout << "Enter fine amount to pay: ";
+                        cin >> fineAmount;
+                        library.payFine(member, fineAmount);
+                    }
+                }
+            }
+        }
+    }
+
+    cout << "Thanks for visiting!\n";
+    return 0;
+}
